@@ -2,6 +2,12 @@ import express from "express";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import cors from "cors";
+import {
+  createGame,
+  getPublicState,
+  processTurn,
+  drawTile,
+} from "./gameManager.js";
 
 const app = express();
 const httpServer = createServer(app);
@@ -48,13 +54,69 @@ io.on("connection", (socket) => {
     const firstPlayer = room.players[0];
     if (firstPlayer.id !== socket.id) return;
 
-    io.to(code).emit("game:started", {
-      board: [],
-      rack: [],
-      currentTurn: room.players[0].id,
-    });
+    room.gameState = createGame(room.players);
+
+    for (const player of room.players) {
+      const state = getPublicState(room.gameState, player.id);
+      io.to(player.id).emit("game:started", state);
+    }
 
     console.log(`game started in room ${code}`);
+  });
+
+  socket.on("turn:submit", ({ code, board, rack }) => {
+    const room = rooms[code];
+    if (!room || !room.gameState) return;
+
+    const result = processTurn(room.gameState, socket.id, board, rack);
+
+    if (!result.success) {
+      socket.emit("turn:invalid", { reason: result.reason });
+      return;
+    }
+
+    if (result.finished) {
+      for (const player of room.players) {
+        const state = getPublicState(room.gameState, player.id);
+        io.to(player.id).emit("game:over", { ...state, winner: result.winner });
+      }
+      return;
+    }
+
+    for (const player of room.players) {
+      const state = getPublicState(room.gameState, player.id);
+      io.to(player.id).emit("state:update", state);
+    }
+  });
+
+  socket.on("turn:draw", ({ code }) => {
+    const room = rooms[code];
+    if (!room || !room.gameState) return;
+
+    if (room.gameState.pool.length === 0) {
+      nextTurn(room.gameState);
+
+      for (const player of room.players) {
+        const state = getPublicState(room.gameState, player.id);
+        io.to(player.id).emit("state:update", {
+          ...state,
+          message: "Pool is empty — turn passed automatically.",
+        });
+      }
+      return;
+    }
+
+    const result = drawTile(room.gameState, socket.id);
+
+    if (!result.success) {
+      socket.emit("turn:invalid", { reason: result.reason });
+      return;
+    }
+
+    for (const player of room.players) {
+      const state = getPublicState(room.gameState, player.id);
+      io.to(player.id).emit("state:update", state);
+    }
   });
 
   socket.on("disconnect", () => {

@@ -11,6 +11,8 @@ export const useGameStore = defineStore("game", () => {
   const board = ref([]);
   const currentTurn = ref(null);
   const mySocketId = ref(null);
+  const poolCount = ref(0);
+  const serverMessage = ref("");
 
   function joinRoom(name, code) {
     playerName.value = name;
@@ -33,6 +35,7 @@ export const useGameStore = defineStore("game", () => {
       board.value = data.board;
       myRack.value = data.rack;
       currentTurn.value = data.currentTurn;
+      poolCount.value = data.poolCount || 0;
     });
 
     socket.on("state:update", (data) => {
@@ -40,6 +43,13 @@ export const useGameStore = defineStore("game", () => {
       myRack.value = data.rack;
       currentTurn.value = data.currentTurn;
       players.value = data.players;
+      poolCount.value = data.poolCount || 0;
+      if (data.message) {
+        serverMessage.value = data.message;
+        setTimeout(() => {
+          serverMessage.value = "";
+        }, 4000);
+      }
     });
   }
 
@@ -52,6 +62,8 @@ export const useGameStore = defineStore("game", () => {
     board,
     currentTurn,
     mySocketId,
+    poolCount,
+    serverMessage,
     joinRoom,
     registerSocketEvents,
   };
