@@ -147,10 +147,7 @@ export function drawTile(gameState, socketId) {
 
   const tile = gameState.pool.splice(0, 1)[0];
   gameState.players[socketId].rack.push(tile);
-
-  gameState.players[socketId].rack.push(tile);
   addLog(gameState, `${gameState.players[socketId].name} drew a tile`);
-  nextTurn(gameState);
   nextTurn(gameState);
   return { success: true, tile };
 }
