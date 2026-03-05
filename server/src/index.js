@@ -7,6 +7,7 @@ import {
   getPublicState,
   processTurn,
   drawTile,
+  nextTurn,
 } from "./gameManager.js";
 
 const app = express();
@@ -55,6 +56,10 @@ io.on("connection", (socket) => {
     if (firstPlayer.id !== socket.id) return;
 
     room.gameState = createGame(room.players);
+    room.gameState.log.push({
+      message: `Game started with ${room.players.length} players`,
+      timestamp: Date.now(),
+    });
 
     for (const player of room.players) {
       const state = getPublicState(room.gameState, player.id);
@@ -94,6 +99,11 @@ io.on("connection", (socket) => {
     if (!room || !room.gameState) return;
 
     if (room.gameState.pool.length === 0) {
+      const player = room.gameState.players[socket.id];
+      room.gameState.log.push({
+        message: `${player.name} passed (pool empty)`,
+        timestamp: Date.now(),
+      });
       nextTurn(room.gameState);
 
       for (const player of room.players) {

@@ -1,6 +1,14 @@
 import { createTileset, shuffle, dealTiles } from "./tiles.js";
 import { isValidBoard, groupScore } from "./validator.js";
 
+function addLog(gameState, message) {
+  gameState.log.push({
+    message,
+    timestamp: Date.now(),
+  });
+  if (gameState.log.length > 50) gameState.log.shift();
+}
+
 export function createGame(players) {
   const pool = shuffle(createTileset());
 
@@ -21,6 +29,8 @@ export function createGame(players) {
     turnOrder: players.map((p) => p.id),
     currentTurn: players[0].id,
     phase: "playing",
+    lastPlayedIds: [],
+    log: [],
   };
 }
 
@@ -38,6 +48,8 @@ export function getPublicState(gameState, socketId) {
     currentTurn: gameState.currentTurn,
     players,
     poolCount: gameState.pool.length,
+    lastPlayedIds: gameState.lastPlayedIds || [],
+    log: gameState.log || [],
   };
 }
 
@@ -75,19 +87,16 @@ export function processTurn(gameState, socketId, proposedBoard, proposedRack) {
     const playedFromRack = proposedBoard
       .flat()
       .filter((t) => rackTileIds.has(t.id));
-    const playedScore = playedFromRack.reduce(
-      (sum, t) => sum + (t.isJoker ? 30 : t.number),
-      0,
-    );
+    const playedScore = playedFromRack.reduce((sum, t) => {
+      if (t.isJoker && t.represents) return sum + t.represents.number;
+      if (t.isJoker) return sum + 30;
+      return sum + t.number;
+    }, 0);
 
     if (playedScore < 30) {
       return { success: false, reason: "initial meld must total at least 30" };
     }
 
-    const newTilesOnBoard = proposedBoard
-      .flat()
-      .filter((t) => !previousBoardTileIds.has(t.id));
-    const newTileIds = new Set(newTilesOnBoard.map((t) => t.id));
     for (const id of previousBoardTileIds) {
       if (!proposedBoardTileIds.has(id)) {
         return {
@@ -101,12 +110,25 @@ export function processTurn(gameState, socketId, proposedBoard, proposedRack) {
     player.hasInitialMeld = true;
   }
 
+  const previousBoardIds = new Set(gameState.board.flat().map((t) => t.id));
+  const newlyPlayedIds = proposedBoard
+    .flat()
+    .map((t) => t.id)
+    .filter((id) => !previousBoardIds.has(id));
+
+  gameState.lastPlayedIds = newlyPlayedIds;
   gameState.board = proposedBoard;
   player.rack = proposedRack;
+
+  addLog(
+    gameState,
+    `${player.name} played ${newlyPlayedIds.length} tile${newlyPlayedIds.length !== 1 ? "s" : ""}`,
+  );
 
   if (player.rack.length === 0) {
     gameState.phase = "finished";
     gameState.winner = socketId;
+    addLog(gameState, `🎉 ${player.name} wins!`);
     return { success: true, finished: true, winner: socketId };
   }
 
@@ -126,6 +148,9 @@ export function drawTile(gameState, socketId) {
   const tile = gameState.pool.splice(0, 1)[0];
   gameState.players[socketId].rack.push(tile);
 
+  gameState.players[socketId].rack.push(tile);
+  addLog(gameState, `${gameState.players[socketId].name} drew a tile`);
+  nextTurn(gameState);
   nextTurn(gameState);
   return { success: true, tile };
 }

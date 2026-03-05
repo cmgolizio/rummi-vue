@@ -1,10 +1,7 @@
 <template>
   <div
     class="tile"
-    :class="[
-      tile.isJoker ? 'joker' : tile.color,
-      { 'tile-new': isNew, 'tile-existing': isExisting },
-    ]"
+    :class="[tile.isJoker ? 'joker' : tile.color, { 'tile-new': isNew }]"
   >
     <template v-if="tile.isJoker">
       <span class="joker-star">★</span>
@@ -25,10 +22,6 @@ defineProps({
     required: true,
   },
   isNew: {
-    type: Boolean,
-    default: false,
-  },
-  isExisting: {
     type: Boolean,
     default: false,
   },
@@ -74,13 +67,9 @@ defineProps({
 }
 
 .tile-new {
-  border-color: #4caf50;
-  box-shadow: 0 0 8px rgba(76, 175, 80, 0.6);
-}
-
-.tile-existing {
-  opacity: 0.75;
-  border-color: #aaa;
+  border-color: #ffa71a;
+  border-width: 3px;
+  box-shadow: 0 0 10px rgba(255, 167, 26, 0.7);
 }
 
 .joker-star {

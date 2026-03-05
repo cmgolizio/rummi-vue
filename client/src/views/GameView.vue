@@ -31,6 +31,7 @@
         </div>
       </div>
       <div class="pool-info">🎲 {{ store.poolCount }} tiles in pool</div>
+      <GameLog :log="log" />
     </div>
 
     <div class="main">
@@ -50,8 +51,7 @@
               v-for="tile in group"
               :key="tile.id"
               :tile="tile"
-              :isNew="!snapshotBoardIds.has(tile.id)"
-              :isExisting="snapshotBoardIds.has(tile.id)"
+              :isNew="lastPlayedIdSet.has(tile.id)"
               draggable="true"
               @dragstart="onDragStart($event, tile, 'board', groupIndex)"
             />
@@ -77,9 +77,9 @@
         <button @click="submitTurn" class="btn-submit">✓ Submit Turn</button>
         <button @click="drawTile" class="btn-draw">Draw Tile</button>
         <button @click="sortRack" class="btn-sort">
-          Sort by {{ sortMode === "color" ? "Color" : "Number" }}
+          {{ sortMode === "color" ? "123" : "333" }}
         </button>
-        <button @click="cancelTurn" class="btn-cancel">↺ Clear</button>
+        <button @click="cancelTurn" class="btn-cancel">↺ Cancel</button>
       </div>
       <div class="waiting" v-else>
         ⏳ Waiting for {{ currentPlayerName }}...
@@ -119,10 +119,11 @@ import TileComponent from "../components/TileComponent.vue";
 import GameOverModal from "../components/GameOverModal.vue";
 import JokerModal from "../components/JokerModal.vue";
 import socket from "../socket/index.js";
+import GameLog from "../components/GameLog.vue";
 
 const store = useGameStore();
 const router = useRouter();
-const { serverMessage } = storeToRefs(store);
+const { serverMessage, lastPlayedIds, log } = storeToRefs(store);
 
 const workingBoard = ref([]);
 const workingRack = ref([]);
@@ -147,9 +148,8 @@ const isMyTurn = computed(() => store.currentTurn === store.mySocketId);
 const currentPlayerName = computed(() => {
   return store.players.find((p) => p.id === store.currentTurn)?.name || "";
 });
-const snapshotBoardIds = computed(
-  () => new Set(boardSnapshot.value.flat().map((t) => t.id)),
-);
+
+const lastPlayedIdSet = computed(() => new Set(lastPlayedIds.value));
 
 function generateGroupKeys(board) {
   return board.map((_, i) => `group-${Date.now()}-${i}`);

@@ -9,6 +9,8 @@ export const useGameStore = defineStore("game", () => {
   const gamePhase = ref("lobby");
   const myRack = ref([]);
   const board = ref([]);
+  const lastPlayedIds = ref([]);
+  const log = ref([]);
   const currentTurn = ref(null);
   const mySocketId = ref(null);
   const poolCount = ref(0);
@@ -36,6 +38,8 @@ export const useGameStore = defineStore("game", () => {
       myRack.value = data.rack;
       currentTurn.value = data.currentTurn;
       poolCount.value = data.poolCount || 0;
+      lastPlayedIds.value = [];
+      log.value = data.log || [];
     });
 
     socket.on("state:update", (data) => {
@@ -44,6 +48,8 @@ export const useGameStore = defineStore("game", () => {
       currentTurn.value = data.currentTurn;
       players.value = data.players;
       poolCount.value = data.poolCount || 0;
+      lastPlayedIds.value = data.lastPlayedIds || [];
+      log.value = data.log || [];
       if (data.message) {
         serverMessage.value = data.message;
         setTimeout(() => {
@@ -64,6 +70,8 @@ export const useGameStore = defineStore("game", () => {
     mySocketId,
     poolCount,
     serverMessage,
+    lastPlayedIds,
+    log,
     joinRoom,
     registerSocketEvents,
   };
